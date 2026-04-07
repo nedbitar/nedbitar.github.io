@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dual-Core ML Accelerator — Ned Bitar</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#fafaf8;--bg-card:#fff;--border:#e6e2db;--border-hover:#ccc5b8;
+  --text:#3a3830;--text-muted:#8a8278;--text-heading:#1a1916;
+  --accent:#b45309;--accent-dim:rgba(180,83,9,0.08);
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --serif:Georgia,'Palatino Linotype',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+}
+html{scroll-behavior:smooth;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:15px;line-height:1.72;-webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+::selection{background:var(--accent);color:#fff;}
+.container{max-width:900px;margin:0 auto;padding:0 28px;}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:200;border-bottom:1px solid transparent;transition:background .25s,border-color .25s;}
+nav.scrolled{background:rgba(250,250,248,0.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom-color:var(--border);}
+.nav-inner{max-width:900px;margin:0 auto;padding:0 28px;height:54px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--text-heading);}
+.logo span{color:var(--accent);}
+.nav-back{font-family:var(--mono);font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;transition:color .15s;}
+.nav-back:hover{color:var(--accent);text-decoration:none;}
+.nav-back svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;}
+
+.proj-header{padding:100px 0 40px;}
+.breadcrumb{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:24px;display:flex;align-items:center;gap:6px;}
+.breadcrumb a{color:var(--text-muted);}.breadcrumb a:hover{color:var(--accent);}
+.breadcrumb-sep{color:var(--border-hover);}
+.proj-title{font-family:var(--serif);font-size:clamp(26px,4.5vw,46px);font-weight:400;color:var(--text-heading);line-height:1.15;letter-spacing:-1px;margin-bottom:8px;}
+.proj-subtitle{font-family:var(--mono);font-size:12px;color:var(--text-muted);margin-bottom:20px;}
+.proj-tags{display:flex;flex-wrap:wrap;gap:6px;}
+.proj-tags span{font-family:var(--mono);font-size:10px;font-weight:500;padding:3px 9px;background:var(--accent-dim);color:var(--accent);border-radius:3px;border:1px solid rgba(180,83,9,0.15);}
+.proj-img.has-image::before,.proj-img.has-image::after{content:none !important;}
+.pdf-link{display:inline-flex;align-items:center;gap:8px;margin-top:20px;font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid rgba(180,83,9,0.3);border-radius:4px;padding:9px 16px;text-decoration:none;transition:background .15s;}
+.pdf-link:hover{background:var(--accent-dim);text-decoration:none;}
+.pdf-link svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0;}
+
+.proj-img-wrap{padding:0 0 56px;}
+.proj-img{width:100%;height:380px;border-radius:12px;position:relative;overflow:hidden;border:1px solid var(--border);}
+.pi-mlchip{background-color:#08080f;}
+.pi-mlchip::before{
+  content:'';position:absolute;inset:0;
+  background:
+    repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(59,130,246,0.07) 3px, rgba(59,130,246,0.07) 4px),
+    repeating-linear-gradient(90deg, transparent 0px, transparent 3px, rgba(59,130,246,0.05) 3px, rgba(59,130,246,0.05) 4px);
+}
+.pi-mlchip::after{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse at 22% 42%, rgba(59,130,246,0.38) 0%, transparent 38%),
+    radial-gradient(ellipse at 72% 35%, rgba(239,68,68,0.30) 0%, transparent 32%),
+    radial-gradient(ellipse at 48% 72%, rgba(180,83,9,0.35) 0%, transparent 35%),
+    radial-gradient(ellipse at 78% 75%, rgba(139,92,246,0.25) 0%, transparent 30%),
+    radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.3) 0%, transparent 70%);
+}
+.img-caption{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-align:center;margin-top:10px;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:56px;}
+.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:18px 16px;text-align:center;}
+.stat-num{font-family:var(--serif);font-size:26px;color:var(--accent);font-weight:400;line-height:1;}
+.stat-label{font-family:var(--mono);font-size:9.5px;color:var(--text-muted);margin-top:6px;letter-spacing:.5px;text-transform:uppercase;}
+
+/* Overview + bullets */
+.proj-content{display:grid;grid-template-columns:1fr 1fr;gap:56px;padding-bottom:56px;}
+.section-mini{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:18px;}
+.prose{font-family:var(--serif);font-size:16.5px;line-height:1.85;color:var(--text);}
+.prose p+p{margin-top:16px;}
+.detail-list{list-style:none;}
+.detail-list li{position:relative;padding-left:18px;font-size:14px;line-height:1.72;color:var(--text);margin-bottom:10px;}
+.detail-list li::before{content:'';position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--accent);}
+
+/* Steps */
+.steps{padding-bottom:56px;}
+.step-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.step-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:22px 22px 20px;}
+.step-card:hover{border-color:var(--border-hover);}
+.step-num{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:8px;}
+.step-title{font-size:14px;font-weight:700;color:var(--text-heading);margin-bottom:10px;}
+.step-body{font-size:13px;color:var(--text-muted);line-height:1.65;}
+.step-body strong{color:var(--text);font-weight:600;}
+
+/* Gallery */
+.gallery{padding-bottom:64px;}
+.gallery-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.gallery-item img{width:100%;height:260px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:block;cursor:zoom-in;transition:opacity .2s,box-shadow .2s;}
+.gallery-item img.fit-contain{object-fit:contain;background:#08080f;}
+.gallery-item img:hover{opacity:.93;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
+
+/* Hero image clickable */
+.proj-img.has-image{cursor:zoom-in;}
+
+/* Lightbox */
+.lb-overlay{display:none;position:fixed;inset:0;z-index:900;background:rgba(10,9,8,0.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px;}
+.lb-overlay.open{display:flex;}
+.lb-inner{position:relative;max-width:min(92vw,1100px);max-height:90vh;display:flex;flex-direction:column;align-items:center;gap:12px;}
+.lb-img{max-width:100%;max-height:82vh;border-radius:8px;box-shadow:0 24px 80px rgba(0,0,0,0.5);display:block;}
+.lb-caption{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,0.55);text-align:center;letter-spacing:.3px;}
+.lb-close{position:absolute;top:-14px;right:-14px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;line-height:1;transition:background .15s;}
+.lb-close:hover{background:rgba(255,255,255,0.22);}
+
+.proj-nav{display:flex;justify-content:space-between;align-items:center;padding:32px 0;border-top:1px solid var(--border);}
+.proj-nav a{font-family:var(--mono);font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;text-decoration:none;transition:color .15s;}
+.proj-nav a:hover{color:var(--accent);}
+.proj-nav svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;}
+footer{padding:28px 0;border-top:1px solid var(--border);}
+.footer-copy{font-family:var(--mono);font-size:11px;color:var(--text-muted);}
+
+@media(max-width:700px){
+  .proj-content{grid-template-columns:1fr;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .step-grid{grid-template-columns:1fr;}
+  .gallery-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="../index.html" class="logo">ned<span>.</span></a>
+    <a href="../index.html#projects" class="nav-back">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      All Projects
+    </a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="proj-header">
+    <div class="breadcrumb">
+      <a href="../index.html">Home</a><span class="breadcrumb-sep">/</span>
+      <a href="../index.html#projects">Projects</a><span class="breadcrumb-sep">/</span>
+      <span>Dual-Core ML Accelerator</span>
+    </div>
+    <h1 class="proj-title">Dual-Core ML Accelerator for Attention Mechanism</h1>
+    <div class="proj-subtitle">ECE 260B &nbsp;·&nbsp; UC San Diego &nbsp;·&nbsp; with Stanley Pan, Francisco Garcia, Harini Sabapathy, Sujit Suresh, Jesse Vernallis</div>
+    <div class="proj-tags">
+      <span>Verilog</span><span>ASIC</span><span>Cadence Genus</span><span>Cadence Innovus</span><span>TSMC 65nm</span><span>RTL</span><span>Place &amp; Route</span><span>Attention Mechanism</span><span>ML Accelerator</span>
+    </div>
+    <a href="papers/ml-accelerator-report.pdf" target="_blank" class="pdf-link">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      View Report
+    </a>
+  </div>
+
+  <div class="proj-img-wrap">
+    <div class="proj-img pi-mlchip" data-img="assets/ml-accelerator/hero-dual-core-layout.png" data-img-size="contain"></div>
+    <p class="img-caption">Figure 9: Optimized dual-core place-and-route layout from Step 5.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="stat-num">1 GHz</div><div class="stat-label">Target Clock</div></div>
+    <div class="stat-card"><div class="stat-num">65 nm</div><div class="stat-label">TSMC Node</div></div>
+    <div class="stat-card"><div class="stat-num">370 mW</div><div class="stat-label">Optimized Power</div></div>
+    <div class="stat-card"><div class="stat-num">0</div><div class="stat-label">DRC Errors</div></div>
+  </div>
+
+  <div class="proj-content">
+    <div>
+      <div class="section-mini">Overview</div>
+      <div class="prose">
+        <p>Designed, implemented, and verified a dual-core matrix multiplying accelerator targeting the attention mechanism in transformer networks — taken from RTL all the way through place-and-route using industry-standard ASIC tools.</p>
+        <p>The project followed six steps: single-core RTL and synthesis, output normalization, hierarchical core synthesis with SRAM macros, dual-core integration with asynchronous clock-domain crossing, performance and power optimization, and sparsity-aware computation.</p>
+      </div>
+    </div>
+    <div>
+      <div class="section-mini">Key Contributions</div>
+      <ul class="detail-list">
+        <li>Fixed output port mux, parallel factor, async reset, and latch inference issues in the starter RTL</li>
+        <li>Synthesized with Cadence Genus targeting 1 GHz / TSMC 65 nm standard cell library</li>
+        <li>Place-and-route with Cadence Innovus; verified with gate-level simulation + back-annotated SDF timing</li>
+        <li>Integrated two SRAM hard macros (128-bit and 160-bit) as fixed IP blocks with 3 µm routing halos</li>
+        <li>Built dual-core architecture with asynchronous FIFO for clock-domain crossing between cores</li>
+        <li>Achieved 0 DRC errors on the final dual-core design; all 64 normalized outputs matched expected values</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="section-mini" style="margin-bottom:18px;">Design Steps</div>
+    <div class="step-grid">
+
+      <div class="step-card">
+        <div class="step-num">STEP 01</div>
+        <div class="step-title">Single-Core RTL, Synthesis &amp; PnR</div>
+        <div class="step-body">Corrected starter RTL: fixed output mux, reduced parallel factor from 16 to 8, added async reset, and eliminated latch inference. Synthesized with Cadence Genus at 1 GHz targeting TSMC 65 nm. Placed and routed with Cadence Innovus. Post-PnR: <strong>WNS −1.216 ns, 169.7 mW, 98.8% utilization.</strong> Gate-level simulation with SDF verified all Q·K products at 1680 ns.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">STEP 02</div>
+        <div class="step-title">Output Normalization (SFP)</div>
+        <div class="step-body">Implemented the <strong>sfp_row normalization module</strong> connected to the partial-sum memory output. Two-phase operation: accumulation phase computes per-row divisors (sum of absolute column values), stored in an internal FIFO; division phase normalizes each element and writes back via a pipeline mux. Behavioral simulation verified correct normalized values for all 8 rows × 8 columns.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">STEP 03</div>
+        <div class="step-title">Hierarchical Single-Core Synthesis</div>
+        <div class="step-body">Instantiated two SRAM macros as fixed hard IP blocks: <strong>sram_128b_w16</strong> (128-bit, 16 entries) for Q/K memory and <strong>sram_160b_w16</strong> (160-bit, 16 entries) for psum memory. Each macro placed with a 3 µm routing halo and its own VDD/VSS block ring on M1/M2. Post-PnR: <strong>231.0 mW, 960k / 1,000k µm² area.</strong> 0 DRC/LVS geometry violations.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">STEP 04</div>
+        <div class="step-title">Dual-Core Integration</div>
+        <div class="step-body">Instantiated two single-core blocks in parallel: <strong>Core 0</strong> processes K₀–K₇ and <strong>Core 1</strong> processes K₈–K₁₅, each with its own 8-wide datapath. Cores exchange partial sums across clock domains via an <strong>asynchronous FIFO.</strong> Post-PnR: <strong>382.3 mW, 1,262k / 3,744k µm²,  99.0% utilization.</strong> Gate-level simulation confirmed 64 normalized outputs matched expected values in 150 ns.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">STEP 05</div>
+        <div class="step-title">Performance &amp; Power Optimization</div>
+        <div class="step-body">Applied four optimizations: <strong>pipelined MAC datapath</strong> (registered products, balanced reduction tree, registered outputs); <strong>multi-stage SFP pipeline</strong> replacing single-cycle division; <strong>activity gating</strong> on SRAMs to reduce dynamic power; and <strong>memory double buffering</strong> (ping-pong Q-memory banks). Result: WNS improved to <strong>−2.452 ns</strong>, power reduced to <strong>370.08 mW</strong>, area reduced to <strong>2,528,800 µm²</strong>.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">STEP 06</div>
+        <div class="step-title">Sparsity-Aware Attention</div>
+        <div class="step-body">Added row-level sparsity detection in the sfp_row module. Each row's sparsity score Sᵢ is computed; rows below the <strong>30th-percentile threshold</strong> are marked sparse and skip normalization entirely — outputs are zeroed. Sorted Sᵢ values to select the threshold data-adaptively. With 30% sparsity, roughly 30% of rows complete in one cycle. Final: <strong>378.21 mW, 1,000,000 µm² area</strong>, 1.07% power reduction over baseline.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="gallery">
+    <div class="section-mini" style="margin-bottom:18px;">Gallery</div>
+    <div class="gallery-grid">
+      <div class="gallery-item">
+        <img src="assets/ml-accelerator/hierarchical-core-sram-macros.png" alt="Post-place-and-route layout of the hierarchical core with three SRAM hard macros" class="lb-trigger fit-contain" data-caption="Figure 5: Post-PnR layout of the hierarchical core with three fixed SRAM hard macros, including the 160-bit psum memory and the two 128-bit Q/K memories, each placed with a 3 um routing halo.">
+        <p class="img-caption">Figure 5: Post-PnR layout of the hierarchical core with three fixed SRAM hard macros, including the 160-bit <code>psum_mem</code> and the two 128-bit Q/K memories, each placed with a 3 um routing halo.</p>
+      </div>
+      <div class="gallery-item">
+        <img src="assets/ml-accelerator/sparsity-aware-waveform.png" alt="Gate-level simulation waveform for sparsity-aware design" class="lb-trigger" data-caption="Figure 12: Gate-level simulation waveform for sparsity-aware design.">
+        <p class="img-caption">Figure 12: Gate-level simulation waveform for sparsity-aware design.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="proj-nav">
+    <a href="quadcopter.html"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>Quadcopter</a>
+    <a href="../index.html#projects">All Projects<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="container">
+    <div class="footer-copy">&copy; 2026 Ned Bitar</div>
+  </div>
+</footer>
+
+<div class="lb-overlay" id="lb">
+  <div class="lb-inner">
+    <button class="lb-close" id="lb-close">&#x2715;</button>
+    <img class="lb-img" id="lb-img" src="" alt="">
+    <div class="lb-caption" id="lb-caption"></div>
+  </div>
+</div>
+
+<script>
+const nav=document.getElementById('nav');
+window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>40),{passive:true});
+
+// Background-image placeholders (hero)
+document.querySelectorAll('[data-img]').forEach(el=>{const u=el.getAttribute('data-img');if(u){const size=el.getAttribute('data-img-size')||'cover';el.style.backgroundImage=`url(${u})`;el.style.backgroundSize=size;el.style.backgroundPosition='center';el.style.backgroundRepeat='no-repeat';el.classList.add('has-image');}});
+
+// Lightbox
+const lb=document.getElementById('lb');
+const lbImg=document.getElementById('lb-img');
+const lbCap=document.getElementById('lb-caption');
+
+function openLb(src,caption){lbImg.src=src;lbCap.textContent=caption||'';lb.classList.add('open');document.body.style.overflow='hidden';}
+function closeLb(){lb.classList.remove('open');document.body.style.overflow='';lbImg.src='';}
+
+// Gallery images
+document.querySelectorAll('.lb-trigger').forEach(img=>{
+  img.addEventListener('click',()=>openLb(img.src,img.dataset.caption||img.alt));
+});
+
+// Hero image
+document.querySelectorAll('.proj-img[data-img]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    const u=el.getAttribute('data-img');
+    const cap=el.closest('.proj-img-wrap')?.querySelector('.img-caption')?.textContent||'';
+    if(u) openLb(u,cap);
+  });
+});
+
+document.getElementById('lb-close').addEventListener('click',closeLb);
+lb.addEventListener('click',e=>{if(e.target===lb)closeLb();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLb();});
+</script>
+</body>
+</html>

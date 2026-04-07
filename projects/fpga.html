@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FPGA Systolic Array — Ned Bitar</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#fafaf8;--bg-card:#fff;--border:#e6e2db;--border-hover:#ccc5b8;
+  --text:#3a3830;--text-muted:#8a8278;--text-heading:#1a1916;
+  --accent:#b45309;--accent-dim:rgba(180,83,9,0.08);
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --serif:Georgia,'Palatino Linotype',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+}
+html{scroll-behavior:smooth;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:15px;line-height:1.72;-webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+::selection{background:var(--accent);color:#fff;}
+.container{max-width:900px;margin:0 auto;padding:0 28px;}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;border-bottom:1px solid transparent;transition:background .25s,border-color .25s;}
+nav.scrolled{background:rgba(250,250,248,0.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom-color:var(--border);}
+.nav-inner{max-width:900px;margin:0 auto;padding:0 28px;height:54px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--text-heading);letter-spacing:.5px;}
+.logo span{color:var(--accent);}
+.nav-back{font-family:var(--mono);font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;transition:color .15s;}
+.nav-back:hover{color:var(--accent);text-decoration:none;}
+.nav-back svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;}
+
+/* Hero */
+.proj-header{padding:100px 0 40px;}
+.breadcrumb{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:24px;display:flex;align-items:center;gap:6px;}
+.breadcrumb a{color:var(--text-muted);}
+.breadcrumb a:hover{color:var(--accent);}
+.breadcrumb-sep{color:var(--border-hover);}
+.proj-title{font-family:var(--serif);font-size:clamp(28px,5vw,48px);font-weight:400;color:var(--text-heading);line-height:1.15;letter-spacing:-1px;margin-bottom:20px;}
+.proj-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:0;}
+.proj-tags span{font-family:var(--mono);font-size:10px;font-weight:500;padding:3px 9px;background:var(--accent-dim);color:var(--accent);border-radius:3px;border:1px solid rgba(180,83,9,0.15);}
+.proj-img.has-image::before,.proj-img.has-image::after{content:none !important;}
+.pdf-link{display:inline-flex;align-items:center;gap:8px;margin-top:20px;font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid rgba(180,83,9,0.3);border-radius:4px;padding:9px 16px;text-decoration:none;transition:background .15s;}
+.pdf-link:hover{background:var(--accent-dim);text-decoration:none;}
+.pdf-link svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0;}
+
+/* Hero image */
+.proj-img-wrap{padding:0 0 56px;}
+.proj-img{
+  width:100%;height:380px;border-radius:12px;
+  position:relative;overflow:hidden;
+  border:1px solid var(--border);
+}
+.proj-img.has-image{background-repeat:no-repeat;background-size:contain;background-position:center;}
+/* FPGA circuit grid */
+.pi-fpga{
+  background-color:#fdf6e8;
+  background-image:
+    linear-gradient(rgba(180,83,9,0.22) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(180,83,9,0.22) 1px,transparent 1px),
+    linear-gradient(rgba(180,83,9,0.07) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(180,83,9,0.07) 1px,transparent 1px);
+  background-size:72px 72px,72px 72px,18px 18px,18px 18px;
+}
+.pi-fpga::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 25% 55%,rgba(180,83,9,0.18) 0%,transparent 50%),
+             radial-gradient(ellipse at 80% 20%,rgba(245,158,11,0.12) 0%,transparent 35%);
+}
+.img-caption{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-align:center;margin-top:10px;}
+
+/* Content */
+.proj-content{display:grid;grid-template-columns:1fr 1fr;gap:56px;padding-bottom:64px;}
+.section-mini{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:18px;}
+.prose{font-family:var(--serif);font-size:16.5px;line-height:1.85;color:var(--text);}
+.prose p+p{margin-top:16px;}
+.detail-list{list-style:none;}
+.detail-list li{position:relative;padding-left:18px;font-size:14px;line-height:1.72;color:var(--text);margin-bottom:10px;}
+.detail-list li::before{content:'';position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--accent);}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:40px 0;}
+.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:20px;text-align:center;}
+.stat-num{font-family:var(--serif);font-size:32px;color:var(--accent);font-weight:400;line-height:1;}
+.stat-label{font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:6px;letter-spacing:.5px;}
+
+/* Gallery */
+.gallery{padding-bottom:64px;}
+.gallery-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:0;}
+.gallery-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .15s,transform .15s;}
+.gallery-card:hover{border-color:var(--accent);transform:translateY(-1px);}
+.gallery-card img{display:block;width:100%;height:230px;object-fit:contain;background:var(--bg-card);}
+.gallery-caption{padding:10px 12px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--text-muted);}
+
+/* Project nav */
+.proj-nav{display:flex;justify-content:space-between;align-items:center;padding:32px 0;border-top:1px solid var(--border);}
+.proj-nav a{font-family:var(--mono);font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;text-decoration:none;transition:color .15s;}
+.proj-nav a:hover{color:var(--accent);}
+.proj-nav svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;}
+
+footer{padding:28px 0;border-top:1px solid var(--border);}
+.footer-copy{font-family:var(--mono);font-size:11px;color:var(--text-muted);}
+.gallery-card img{cursor:zoom-in;}
+.proj-img.has-image{cursor:zoom-in;}
+.lb-overlay{display:none;position:fixed;inset:0;z-index:900;background:rgba(10,9,8,0.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px;}
+.lb-overlay.open{display:flex;}
+.lb-inner{position:relative;max-width:min(92vw,1100px);max-height:90vh;display:flex;flex-direction:column;align-items:center;gap:12px;}
+.lb-img{max-width:100%;max-height:82vh;border-radius:8px;box-shadow:0 24px 80px rgba(0,0,0,0.5);display:block;}
+.lb-caption{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,0.55);text-align:center;letter-spacing:.3px;max-width:700px;}
+.lb-close{position:absolute;top:-14px;right:-14px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;line-height:1;transition:background .15s;}
+.lb-close:hover{background:rgba(255,255,255,0.22);}
+@media(max-width:700px){
+  .proj-content{grid-template-columns:1fr;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .gallery-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="../index.html" class="logo">ned<span>.</span></a>
+    <a href="../index.html#projects" class="nav-back">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      All Projects
+    </a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="proj-header">
+    <div class="breadcrumb">
+      <a href="../index.html">Home</a>
+      <span class="breadcrumb-sep">/</span>
+      <a href="../index.html#projects">Projects</a>
+      <span class="breadcrumb-sep">/</span>
+      <span>FPGA Systolic Array</span>
+    </div>
+    <h1 class="proj-title">Reconfigurable 2D Systolic Array Accelerator</h1>
+    <div class="proj-tags">
+      <span>Verilog</span><span>FPGA</span><span>CNN</span><span>HW Acceleration</span><span>Clock Gating</span><span>Pipelining</span>
+    </div>
+    <a href="papers/fpga-report.pdf" target="_blank" class="pdf-link">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      View Report
+    </a>
+  </div>
+
+  <div class="proj-img-wrap">
+    <div class="proj-img pi-fpga" data-img="assets/fpga/top-level-rtl-array.png"></div>
+    <p class="img-caption">Top-level RTL of the reconfigurable systolic array targeting Cyclone IV GX.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="stat-num">69%</div><div class="stat-label">Latency Reduction</div></div>
+    <div class="stat-card"><div class="stat-num">83%</div><div class="stat-label">Memory Savings</div></div>
+    <div class="stat-card"><div class="stat-num">67%</div><div class="stat-label">Fewer Clock Cycles</div></div>
+  </div>
+
+  <div class="proj-content">
+    <div>
+      <div class="section-mini">Overview</div>
+      <div class="prose">
+        <p>Designed and implemented a reconfigurable 2D systolic array architecture in Verilog for efficient convolutional neural network inference on FPGA. The goal was to minimize power consumption and memory bandwidth while maintaining high throughput for convolutional layers.</p>
+        <p>The architecture is reconfigurable — parameters can be adjusted to accommodate different network shapes and input sizes without a full redesign. The final design achieved substantial improvements across latency, memory, and compute efficiency metrics over a baseline implementation.</p>
+      </div>
+    </div>
+    <div>
+      <div class="section-mini">Technical Highlights</div>
+      <ul class="detail-list">
+        <li>69% reduction in convolution latency via parallel accumulation and deep pipelining of the PE array</li>
+        <li>83% memory savings through input data sieving — only loading data that participates in the current computation window</li>
+        <li>55% fewer MAC operations by eliminating redundant multiplications across the datapath</li>
+        <li>67% clock cycle reduction using Input Channel LUT filtering to skip zero-valued inputs</li>
+        <li>Power and area optimization via clock gating on idle processing elements</li>
+        <li>FIFO depth reduction and datapath register trimming to minimize buffering overhead</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="gallery">
+    <div class="section-mini" style="margin-bottom:18px;">Gallery</div>
+    <div class="gallery-grid">
+      <figure class="gallery-card">
+        <img src="assets/fpga/corelet-block-diagram.png" alt="Corelet block diagram of the systolic array accelerator">
+        <figcaption class="gallery-caption">Corelet block diagram showing the MAC array, output FIFO, SFP stage, and control path integration inside the accelerator datapath.</figcaption>
+      </figure>
+      <figure class="gallery-card">
+        <img src="assets/fpga/quartus-summary.png" alt="Quartus fitter, frequency, and power summary for the systolic array design">
+        <figcaption class="gallery-caption">Quartus implementation summary for the Cyclone IV GX target, including logic utilization, 135.94 MHz Fmax, and 244.05 mW total thermal power dissipation.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="proj-nav">
+    <a href="../index.html#projects">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Projects
+    </a>
+    <a href="ray-tracer.html">
+      C++ Ray Tracer
+      <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+    </a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="container">
+    <div class="footer-copy">&copy; 2026 Ned Bitar</div>
+  </div>
+</footer>
+<div class="lb-overlay" id="lb"><div class="lb-inner"><button class="lb-close" id="lb-close">&#x2715;</button><img class="lb-img" id="lb-img" src="" alt=""><div class="lb-caption" id="lb-caption"></div></div></div>
+<script>
+const nav=document.getElementById('nav');
+window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>40),{passive:true});
+const lb=document.getElementById('lb'),lbImg=document.getElementById('lb-img'),lbCap=document.getElementById('lb-caption');
+function openLb(src,cap){lbImg.src=src;lbCap.textContent=cap||'';lb.classList.add('open');document.body.style.overflow='hidden';}
+function closeLb(){lb.classList.remove('open');document.body.style.overflow='';lbImg.src='';}
+document.querySelectorAll('[data-img]').forEach(el=>{const u=el.getAttribute('data-img');if(!u)return;const sz=el.getAttribute('data-img-size')||'contain';el.style.backgroundImage=`url(${u})`;el.style.backgroundSize=sz;el.style.backgroundPosition='center';el.style.backgroundRepeat='no-repeat';el.classList.add('has-image');if(el.classList.contains('proj-img')){el.style.cursor='zoom-in';el.addEventListener('click',()=>{const c=el.closest('.proj-img-wrap')?.querySelector('.img-caption')?.textContent||'';openLb(u,c);});}});
+document.querySelectorAll('.gallery-card img').forEach(img=>{img.addEventListener('click',()=>{const c=img.closest('figure')?.querySelector('figcaption')?.textContent||img.alt||'';openLb(img.src,c);});});
+document.getElementById('lb-close').addEventListener('click',closeLb);
+lb.addEventListener('click',e=>{if(e.target===lb)closeLb();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLb();});
+</script>
+</body>
+</html>

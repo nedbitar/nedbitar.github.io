@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.synctex.gz
+
+# Resume source and variants (keep only resume.pdf)
+*.tex
+resume_*.pdf
+resume_copilot_mfg.pdf
+resume_fabricate.pdf
+resume_medical_robotics.pdf
+resume_rse.pdf
+resume_skydio.pdf
+resume_skydio_inperson.pdf
+resume_sunday.pdf
+resume_tesla_bot.pdf
+resume_tesla_mfg.pdf
+Ned\ Resume-4.pdf

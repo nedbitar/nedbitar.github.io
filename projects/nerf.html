@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeRF² Revisited — Ned Bitar</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#fafaf8;--bg-card:#fff;--border:#e6e2db;--border-hover:#ccc5b8;--text:#3a3830;--text-muted:#8a8278;--text-heading:#1a1916;--accent:#b45309;--accent-dim:rgba(180,83,9,0.08);--mono:ui-monospace,'SF Mono',Menlo,monospace;--serif:Georgia,'Palatino Linotype',serif;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;}
+html{scroll-behavior:smooth;}body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:15px;line-height:1.72;-webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}::selection{background:var(--accent);color:#fff;}
+.container{max-width:900px;margin:0 auto;padding:0 28px;}
+nav{position:fixed;top:0;left:0;right:0;z-index:200;border-bottom:1px solid transparent;transition:background .25s,border-color .25s;}
+nav.scrolled{background:rgba(250,250,248,0.92);backdrop-filter:blur(14px);border-bottom-color:var(--border);}
+.nav-inner{max-width:900px;margin:0 auto;padding:0 28px;height:54px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--text-heading);}.logo span{color:var(--accent);}
+.nav-back{font-family:var(--mono);font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;transition:color .15s;}.nav-back:hover{color:var(--accent);text-decoration:none;}.nav-back svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;}
+.proj-header{padding:100px 0 40px;}
+.breadcrumb{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:24px;display:flex;align-items:center;gap:6px;}.breadcrumb a{color:var(--text-muted);}.breadcrumb a:hover{color:var(--accent);}.breadcrumb-sep{color:var(--border-hover);}
+.proj-title{font-family:var(--serif);font-size:clamp(28px,5vw,48px);font-weight:400;color:var(--text-heading);line-height:1.15;letter-spacing:-1px;margin-bottom:20px;}
+.proj-tags{display:flex;flex-wrap:wrap;gap:6px;}.proj-tags span{font-family:var(--mono);font-size:10px;font-weight:500;padding:3px 9px;background:var(--accent-dim);color:var(--accent);border-radius:3px;border:1px solid rgba(180,83,9,0.15);}
+.proj-img.has-image::before,.proj-img.has-image::after{content:none !important;}
+.pdf-link{display:inline-flex;align-items:center;gap:8px;margin-top:20px;font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid rgba(180,83,9,0.3);border-radius:4px;padding:9px 16px;text-decoration:none;transition:background .15s;}
+.pdf-link:hover{background:var(--accent-dim);text-decoration:none;}
+.pdf-link svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0;}
+.proj-img-wrap{padding:0 0 56px;}
+.proj-img{width:100%;height:380px;border-radius:12px;position:relative;overflow:hidden;border:1px solid var(--border);display:block;background:var(--bg-card);}
+.proj-hero-image{object-fit:contain;background:var(--bg-card);}
+.img-caption{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-align:center;margin-top:10px;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 56px;}
+.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:18px 16px;text-align:center;}
+.stat-num{font-family:var(--serif);font-size:28px;line-height:1;color:var(--accent);}
+.stat-label{font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase;margin-top:7px;}
+.proj-content{display:grid;grid-template-columns:1fr 1fr;gap:56px;padding-bottom:64px;}
+.section-mini{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:18px;}
+.prose{font-family:var(--serif);font-size:16.5px;line-height:1.85;color:var(--text);}.prose p+p{margin-top:16px;}
+.detail-list{list-style:none;}.detail-list li{position:relative;padding-left:18px;font-size:14px;line-height:1.72;color:var(--text);margin-bottom:10px;}.detail-list li::before{content:'';position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--accent);}
+.feature-section,.pipeline-section,.accel-section,.takeaways{padding-bottom:64px;}
+.feature-grid,.pipeline-grid,.accel-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.feature-card,.pipeline-card,.accel-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:20px 18px;}
+.feature-card:hover,.pipeline-card:hover,.accel-card:hover{border-color:var(--border-hover);}
+.card-kicker{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:1px;color:var(--accent);margin-bottom:10px;}
+.card-title{font-size:14px;font-weight:700;color:var(--text-heading);margin-bottom:10px;}
+.card-body{font-size:13px;line-height:1.7;color:var(--text-muted);}
+.card-body strong{color:var(--text);}
+.gallery{padding-bottom:64px;}.gallery-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.gallery-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .15s, transform .15s;}
+.gallery-card:hover{border-color:var(--accent);}
+.gallery-card img{display:block;width:100%;height:220px;object-fit:contain;background:var(--bg-card);}
+.gallery-caption{padding:10px 12px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--text-muted);}
+.proj-nav{display:flex;justify-content:space-between;align-items:center;padding:32px 0;border-top:1px solid var(--border);}.proj-nav a{font-family:var(--mono);font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;text-decoration:none;transition:color .15s;}.proj-nav a:hover{color:var(--accent);}.proj-nav svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;}
+footer{padding:28px 0;border-top:1px solid var(--border);}.footer-copy{font-family:var(--mono);font-size:11px;color:var(--text-muted);}
+@media(max-width:700px){.stats,.proj-content,.feature-grid,.pipeline-grid,.accel-grid,.gallery-grid{grid-template-columns:1fr;}}
+img.proj-hero-image{cursor:zoom-in;}
+.gallery-card img{cursor:zoom-in;}
+.lb-overlay{display:none;position:fixed;inset:0;z-index:900;background:rgba(10,9,8,0.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px;}
+.lb-overlay.open{display:flex;}
+.lb-inner{position:relative;max-width:min(92vw,1100px);max-height:90vh;display:flex;flex-direction:column;align-items:center;gap:12px;}
+.lb-img{max-width:100%;max-height:82vh;border-radius:8px;box-shadow:0 24px 80px rgba(0,0,0,0.5);display:block;}
+.lb-caption{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,0.55);text-align:center;letter-spacing:.3px;max-width:700px;}
+.lb-close{position:absolute;top:-14px;right:-14px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;line-height:1;transition:background .15s;}
+.lb-close:hover{background:rgba(255,255,255,0.22);}
+</style>
+</head>
+<body>
+<nav id="nav"><div class="nav-inner"><a href="../index.html" class="logo">ned<span>.</span></a><a href="../index.html#projects" class="nav-back"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>All Projects</a></div></nav>
+<div class="container">
+  <div class="proj-header">
+    <div class="breadcrumb"><a href="../index.html">Home</a><span class="breadcrumb-sep">/</span><a href="../index.html#projects">Projects</a><span class="breadcrumb-sep">/</span><span>NeRF&sup2; Revisited</span></div>
+    <h1 class="proj-title">NeRF&sup2; Revisited &mdash; Neural Radiance Fields for RF Propagation</h1>
+    <div class="proj-tags"><span>PyTorch</span><span>Metal GPU</span><span>NeRF</span><span>Blender</span><span>MPS Backend</span><span>NVIDIA Sionna</span><span>Instant-NGP</span></div>
+    <a href="papers/nerf2-report.pdf" target="_blank" class="pdf-link">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      View Report
+    </a>
+  </div>
+  <div class="proj-img-wrap">
+    <img class="proj-img proj-hero-image" src="assets/nerf/hero-scene.png" alt="Synthetic Blender scene used to benchmark NeRF2 across materials" />
+    <p class="img-caption">Synthetic Blender scene used to benchmark NeRF&sup2; across materials.</p>
+  </div>
+  <div class="stats">
+    <div class="stat-card"><div class="stat-num">2.88 dBm</div><div class="stat-label">BLE Median Error</div></div>
+    <div class="stat-card"><div class="stat-num">6,000 × 21</div><div class="stat-label">Synthetic TX / RX Layout</div></div>
+    <div class="stat-card"><div class="stat-num">12×</div><div class="stat-label">3080 Faster Than MPS</div></div>
+    <div class="stat-card"><div class="stat-num">4</div><div class="stat-label">Instant-NGP Methods Tested</div></div>
+  </div>
+  <div class="proj-content">
+    <div>
+      <div class="section-mini">Overview</div>
+      <div class="prose">
+        <p>Reproduced and extended NeRF&sup2;, a neural radiance field model adapted for RF signal propagation through physical environments. The original implementation was tightly coupled to CUDA, so the first phase was a ground-up portability pass that made the renderer, training loop, and model run correctly on Apple Silicon through the MPS backend.</p>
+        <p>The project then expanded past reproduction into two research directions: controlled synthetic benchmarking with NVIDIA Sionna and an efficiency study inspired by Instant-NGP. That turned the work from “can I rerun the paper?” into “what actually governs accuracy, generalization, and speed for radio NeRFs?”</p>
+      </div>
+    </div>
+    <div>
+      <div class="section-mini">What Was New</div>
+      <ul class="detail-list">
+        <li>Reproduced the published BLE result on Apple Silicon and matched the paper at roughly <strong>2.8 dBm</strong> median error</li>
+        <li>Fixed configuration and portability bugs, including transmitter positional encoding and non-CUDA execution paths</li>
+        <li>Built a full Sionna-to-NeRF&sup2; dataset pipeline using Blender scenes, Mitsuba export, and RF path solving at <strong>2.4 GHz</strong></li>
+        <li>Benchmarked generalization across concrete, metal, and wood walls while keeping geometry and sampling constant</li>
+        <li>Evaluated four Instant-NGP-style acceleration ideas: hash encoding, architecture reduction, occupancy-grid skipping, and fused Metal integration</li>
+        <li>Used the failure cases to explain where RF propagation diverges from image-rendering assumptions</li>
+      </ul>
+    </div>
+  </div>
+  <div class="feature-section">
+    <div class="section-mini" style="margin-bottom:18px;">Three Contributions</div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="card-kicker">01</div>
+        <div class="card-title">Reproduction on Apple Silicon</div>
+        <div class="card-body">The baseline model trains and evaluates on MPS after fixing CUDA-specific assumptions and missing configuration pieces. The reproduced model reaches <strong>2.88 dBm median error at 10k iterations</strong>, essentially matching the original paper while making the code usable on consumer Apple hardware.</div>
+      </div>
+      <div class="feature-card">
+        <div class="card-kicker">02</div>
+        <div class="card-title">Synthetic RF Benchmarking</div>
+        <div class="card-body">A controlled benchmark suite was built with <strong>6,000 transmitter positions</strong> and <strong>21 gateways</strong> per scene, matching the structure of the real BLE dataset. This made it possible to vary only material properties and measure how NeRF&sup2; responds to physically different environments.</div>
+      </div>
+      <div class="feature-card">
+        <div class="card-kicker">03</div>
+        <div class="card-title">Acceleration Study</div>
+        <div class="card-body">The work tests which Instant-NGP ideas transfer to radio. The answer is mixed: some techniques reduce cost, but several degrade accuracy or run into MPS dispatch overhead, showing that RF attenuation fields behave differently from visual NeRF workloads.</div>
+      </div>
+    </div>
+  </div>
+  <div class="pipeline-section">
+    <div class="section-mini" style="margin-bottom:18px;">Sionna Pipeline</div>
+    <div class="pipeline-grid">
+      <div class="pipeline-card">
+        <div class="card-kicker">STEP 01</div>
+        <div class="card-title">Scene Authoring</div>
+        <div class="card-body">Indoor scenes were designed in Blender, exported through Mitsuba XML, and assigned electromagnetic material properties so the same geometry could simulate <strong>concrete, metal, or wood</strong> walls.</div>
+      </div>
+      <div class="pipeline-card">
+        <div class="card-kicker">STEP 02</div>
+        <div class="card-title">RF Simulation</div>
+        <div class="card-body">NVIDIA Sionna solved RF propagation at <strong>2.4 GHz</strong> with LOS, specular reflection, and refraction enabled. Path amplitudes were converted into RSSI in dBm and exported in NeRF&sup2; training format.</div>
+      </div>
+      <div class="pipeline-card">
+        <div class="card-kicker">STEP 03</div>
+        <div class="card-title">Model Evaluation</div>
+        <div class="card-body">With geometry, TX/RX layout, and train/test split held constant, the benchmark isolated one physical factor at a time. Concrete and metal stayed near <strong>2.1 MSE</strong>, while wood rose to <strong>3.31 MSE</strong> because its weaker reflection and greater transmission create harder multipath structure.</div>
+      </div>
+    </div>
+  </div>
+  <div class="accel-section">
+    <div class="section-mini" style="margin-bottom:18px;">Acceleration Findings</div>
+    <div class="accel-grid">
+      <div class="accel-card">
+        <div class="card-title">Hash Encoding</div>
+        <div class="card-body">Vectorizing the encoder recovered much of the implementation overhead, but the best hash-only variant still trailed the sinusoidal baseline in accuracy. A smaller full “fast model” converged early, then plateaued far above baseline at long training horizons.</div>
+      </div>
+      <div class="accel-card">
+        <div class="card-title">Smaller MLPs</div>
+        <div class="card-body">Architecture reduction delivered real speedups, but the accuracy cliff was steep once the model became too small. A mid-sized slim network offered the best balance; aggressively tiny variants saved time at the cost of several dBm of error.</div>
+      </div>
+      <div class="accel-card">
+        <div class="card-title">Occupancy and Metal</div>
+        <div class="card-body">Occupancy-grid skipping only helped under certain voxel resolutions, and the fused Metal integration kernel delivered little gain on MPS because launch overhead replaced the dispatch overhead it was meant to remove. The lesson was architectural, not just implementation-level.</div>
+      </div>
+    </div>
+  </div>
+  <div class="gallery">
+    <div class="section-mini" style="margin-bottom:18px;">Gallery</div>
+    <div class="gallery-grid">
+      <figure class="gallery-card">
+        <img src="assets/nerf/ground-truth-vs-prediction.png" alt="Ground truth versus NeRF2 prediction for concrete, metal, and wood" loading="lazy" decoding="async" />
+        <figcaption class="gallery-caption">Ground truth versus NeRF&sup2; prediction for concrete, metal, and wood. The model captures the large-scale RSSI field in all three scenes, but wood remains the hardest material because more of the signal transmits through the wall instead of reflecting strongly off it.</figcaption>
+      </figure>
+      <figure class="gallery-card">
+        <img src="assets/nerf/hash-encoding-ablation.png" alt="Hash encoding ablation chart showing accuracy and speed tradeoffs" loading="lazy" decoding="async" />
+        <figcaption class="gallery-caption">Hash-encoding ablation on the BLE dataset. Vectorization fixes most of the raw implementation slowdown, but the sinusoidal baseline still remains the accuracy leader over longer runs.</figcaption>
+      </figure>
+    </div>
+  </div>
+  <div class="takeaways">
+    <div class="section-mini">Takeaways</div>
+    <div class="prose">
+      <p>The project ended up being most valuable where it contradicted the easy story. Porting the code proved NeRF&sup2; is reproducible on Apple Silicon, but the efficiency work showed that radio is not just image NeRF with different labels. The representation is learning attenuation and multipath structure rather than color, and that changes which approximations are safe.</p>
+      <p>That is why the page focuses on both wins and limits: reproducing baseline performance, building a benchmark with controllable physics, and identifying where common NeRF acceleration tricks stop transferring cleanly. For a research project, those negative results were as useful as the positive ones.</p>
+    </div>
+  </div>
+  <div class="proj-nav">
+    <a href="ray-tracer.html"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>C++ Ray Tracer</a>
+    <a href="sdr.html">PlutoSDR Receiver<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
+  </div>
+</div>
+<footer><div class="container"><div class="footer-copy">&copy; 2026 Ned Bitar</div></div></footer>
+<div class="lb-overlay" id="lb"><div class="lb-inner"><button class="lb-close" id="lb-close">&#x2715;</button><img class="lb-img" id="lb-img" src="" alt=""><div class="lb-caption" id="lb-caption"></div></div></div>
+<script>
+const nav=document.getElementById('nav');
+window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>40),{passive:true});
+const lb=document.getElementById('lb'),lbImg=document.getElementById('lb-img'),lbCap=document.getElementById('lb-caption');
+function openLb(src,cap){lbImg.src=src;lbCap.textContent=cap||'';lb.classList.add('open');document.body.style.overflow='hidden';}
+function closeLb(){lb.classList.remove('open');document.body.style.overflow='';lbImg.src='';}
+document.querySelectorAll('[data-img]').forEach(el=>{const u=el.getAttribute('data-img');if(!u)return;el.style.backgroundImage=`url(${u})`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.classList.add('has-image');});
+document.querySelectorAll('img.proj-hero-image').forEach(img=>{img.addEventListener('click',()=>{const c=img.closest('.proj-img-wrap')?.querySelector('.img-caption')?.textContent||img.alt||'';openLb(img.src,c);});});
+document.querySelectorAll('.gallery-card img').forEach(img=>{img.addEventListener('click',()=>{const c=img.closest('figure')?.querySelector('figcaption')?.textContent||img.closest('.gallery-card')?.querySelector('.gallery-caption')?.textContent||img.alt||'';openLb(img.src,c);});});
+document.getElementById('lb-close').addEventListener('click',closeLb);
+lb.addEventListener('click',e=>{if(e.target===lb)closeLb();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLb();});
+</script>
+</body>
+</html>
