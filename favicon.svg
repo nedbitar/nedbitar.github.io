@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="10" fill="#fafaf8"/>
-  <text x="4" y="46" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="36" font-weight="700" fill="#1a1916">ned</text>
-  <text x="53" y="46" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="36" font-weight="700" fill="#b45309">.</text>
+  <text font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="22" font-weight="700" text-anchor="middle" x="32" y="40">
+    <tspan fill="#1a1916">ned</tspan><tspan fill="#b45309">.</tspan>
+  </text>
 </svg>
