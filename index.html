@@ -1430,7 +1430,7 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
     const section = document.getElementById('heroSection');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const GAP = 30, DOT_R = 1.4, BASE = 0.05, RADIUS = 160, THRESH = 0.08;
+    const GAP = 30, DOT_R = 1.4, BASE = 0.03, RADIUS = 160, THRESH = 0.05;
     let W, H, cols, rows, dots, DPR;
     let mouse = {x:-9999, y:-9999};
     let pulses = [];
@@ -1466,7 +1466,7 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
       dots.forEach(d => {
         const dx = d.x - mouse.x, dy = d.y - mouse.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        let target = BASE + Math.max(0, 1 - dist/RADIUS) * 0.38;
+        let target = BASE + Math.max(0, 1 - dist/RADIUS) * 0.22;
         target += Math.sin(t*0.0006 + d.c*0.4 + d.r*0.3) * 0.028 + 0.014;
         pulses.forEach(p => {
           const pdx = d.x - p.x, pdy = d.y - p.y;
@@ -1475,7 +1475,7 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
           const wave = Math.max(0, 1 - Math.abs(p.age - front) * 14) * (1 - p.age);
           target = Math.max(target, BASE + wave * 0.7);
         });
-        d.op += (Math.min(target, 0.45) - d.op) * 0.11;
+        d.op += (Math.min(target, 0.28) - d.op) * 0.11;
       });
 
       // Connections
@@ -1490,7 +1490,7 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
           ctx.beginPath();
           ctx.moveTo(d.x, d.y);
           ctx.lineTo(n.x, n.y);
-          ctx.strokeStyle = `rgba(180,83,9,${Math.min(a, 0.28)})`;
+          ctx.strokeStyle = `rgba(180,83,9,${Math.min(a, 0.16)})`;
           ctx.stroke();
         });
       });
