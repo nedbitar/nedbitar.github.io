@@ -1430,15 +1430,21 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
     const section = document.getElementById('heroSection');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const GAP = 30, DOT_R = 1.2, BASE = 0.07, RADIUS = 160, THRESH = 0.16;
-    let W, H, cols, rows, dots;
+    const GAP = 30, DOT_R = 1.4, BASE = 0.10, RADIUS = 160, THRESH = 0.14;
+    let W, H, cols, rows, dots, DPR;
     let mouse = {x:-9999, y:-9999};
     let pulses = [];
     let raf;
 
     function resize() {
-      W = canvas.width  = section.offsetWidth;
-      H = canvas.height = section.offsetHeight;
+      DPR = window.devicePixelRatio || 1;
+      W = section.offsetWidth;
+      H = section.offsetHeight;
+      canvas.width  = W * DPR;
+      canvas.height = H * DPR;
+      canvas.style.width  = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.scale(DPR, DPR);
       cols = Math.ceil(W / GAP) + 2;
       rows = Math.ceil(H / GAP) + 2;
       dots = [];
@@ -1460,11 +1466,8 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
       dots.forEach(d => {
         const dx = d.x - mouse.x, dy = d.y - mouse.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        // mouse halo
-        let target = BASE + Math.max(0, 1 - dist/RADIUS) * 0.72;
-        // ambient drift
+        let target = BASE + Math.max(0, 1 - dist/RADIUS) * 0.78;
         target += Math.sin(t*0.0006 + d.c*0.4 + d.r*0.3) * 0.028 + 0.014;
-        // click ripples
         pulses.forEach(p => {
           const pdx = d.x - p.x, pdy = d.y - p.y;
           const pd = Math.sqrt(pdx*pdx + pdy*pdy);
@@ -1472,22 +1475,22 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
           const wave = Math.max(0, 1 - Math.abs(p.age - front) * 14) * (1 - p.age);
           target = Math.max(target, BASE + wave * 0.7);
         });
-        d.op += (Math.min(target, 0.88) - d.op) * 0.11;
+        d.op += (Math.min(target, 0.92) - d.op) * 0.11;
       });
 
-      // Connections — horizontal and vertical neighbours only (circuit-trace style)
-      ctx.lineWidth = 0.7;
+      // Connections
+      ctx.lineWidth = 0.9;
       dots.forEach(d => {
         [[0,1],[1,0]].forEach(([dr,dc]) => {
           const n = dot(d.r+dr, d.c+dc);
           if (!n) return;
           const avg = (d.op + n.op) / 2;
           if (avg < THRESH) return;
-          const a = (avg - THRESH) * 1.6;
+          const a = (avg - THRESH) * 2.0;
           ctx.beginPath();
           ctx.moveTo(d.x, d.y);
           ctx.lineTo(n.x, n.y);
-          ctx.strokeStyle = `rgba(180,83,9,${Math.min(a, 0.52)})`;
+          ctx.strokeStyle = `rgba(180,83,9,${Math.min(a, 0.62)})`;
           ctx.stroke();
         });
       });
@@ -1495,7 +1498,7 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
       // Dots
       dots.forEach(d => {
         ctx.beginPath();
-        ctx.arc(d.x, d.y, DOT_R + d.op * 1.4, 0, Math.PI*2);
+        ctx.arc(d.x, d.y, DOT_R + d.op * 1.6, 0, Math.PI*2);
         ctx.fillStyle = `rgba(180,83,9,${d.op})`;
         ctx.fill();
       });
@@ -1513,7 +1516,7 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
       const r = section.getBoundingClientRect();
       pulses.push({ x: e.clientX-r.left, y: e.clientY-r.top, age: 0 });
     });
-    window.addEventListener('resize', () => { resize(); });
+    window.addEventListener('resize', () => { cancelAnimationFrame(raf); resize(); requestAnimationFrame(frame); });
 
     resize();
     requestAnimationFrame(frame);
