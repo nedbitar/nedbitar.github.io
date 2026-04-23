@@ -97,14 +97,10 @@ nav.scrolled {
 
 /* ─── Hero ─── */
 .hero { position: relative; min-height: 100vh; display: flex; align-items: center; padding-top: 82px; overflow: hidden; }
-.hero::before {
-  content: '';
+#heroCanvas {
   position: absolute; inset: 0;
-  background-image: radial-gradient(circle, rgba(180,83,9,0.14) 1px, transparent 1px);
-  background-size: 30px 30px;
-  mask-image: radial-gradient(ellipse at 75% 38%, black 0%, transparent 62%);
-  -webkit-mask-image: radial-gradient(ellipse at 75% 38%, black 0%, transparent 62%);
-  pointer-events: none;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
 }
 .hero-content { position: relative; z-index: 1; max-width: 680px; }
 .hero-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 24px; }
@@ -705,11 +701,12 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
 </nav>
 
 <!-- ─── Hero ─── -->
-<section class="hero">
+<section class="hero" id="heroSection">
+  <canvas id="heroCanvas"></canvas>
   <div class="container">
     <div class="hero-content">
       <p class="hero-eyebrow">Computer Engineer &nbsp;·&nbsp; San Francisco, CA</p>
-      <h1>Ned <em>Bitar</em></h1>
+      <h1>Ned Bitar</h1>
       <div class="hero-focus">
         <span></span>Embedded Systems
         <span>·</span>FPGA &amp; Hardware Design
@@ -1424,6 +1421,101 @@ footer { padding: 28px 0; border-top: 1px solid var(--border); }
   })();
 
   document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ document.querySelectorAll('.pcb-modal-overlay.open').forEach(m=>{ m.classList.remove('open'); document.body.style.overflow=''; }); }});
+
+  // ── Hero canvas ──
+  (function(){
+    const canvas  = document.getElementById('heroCanvas');
+    const section = document.getElementById('heroSection');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const GAP = 30, DOT_R = 1.2, BASE = 0.07, RADIUS = 160, THRESH = 0.16;
+    let W, H, cols, rows, dots;
+    let mouse = {x:-9999, y:-9999};
+    let pulses = [];
+    let raf;
+
+    function resize() {
+      W = canvas.width  = section.offsetWidth;
+      H = canvas.height = section.offsetHeight;
+      cols = Math.ceil(W / GAP) + 2;
+      rows = Math.ceil(H / GAP) + 2;
+      dots = [];
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++)
+          dots.push({ x: c*GAP, y: r*GAP, r, c, op: BASE });
+    }
+
+    function dot(r, c) {
+      if (r<0||r>=rows||c<0||c>=cols) return null;
+      return dots[r*cols+c];
+    }
+
+    function frame(t) {
+      ctx.clearRect(0, 0, W, H);
+      pulses = pulses.filter(p => p.age < 1);
+      pulses.forEach(p => p.age += 0.022);
+
+      dots.forEach(d => {
+        const dx = d.x - mouse.x, dy = d.y - mouse.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        // mouse halo
+        let target = BASE + Math.max(0, 1 - dist/RADIUS) * 0.72;
+        // ambient drift
+        target += Math.sin(t*0.0006 + d.c*0.4 + d.r*0.3) * 0.028 + 0.014;
+        // click ripples
+        pulses.forEach(p => {
+          const pdx = d.x - p.x, pdy = d.y - p.y;
+          const pd = Math.sqrt(pdx*pdx + pdy*pdy);
+          const front = pd / Math.max(W,H) * 1.4;
+          const wave = Math.max(0, 1 - Math.abs(p.age - front) * 14) * (1 - p.age);
+          target = Math.max(target, BASE + wave * 0.7);
+        });
+        d.op += (Math.min(target, 0.88) - d.op) * 0.11;
+      });
+
+      // Connections — horizontal and vertical neighbours only (circuit-trace style)
+      ctx.lineWidth = 0.7;
+      dots.forEach(d => {
+        [[0,1],[1,0]].forEach(([dr,dc]) => {
+          const n = dot(d.r+dr, d.c+dc);
+          if (!n) return;
+          const avg = (d.op + n.op) / 2;
+          if (avg < THRESH) return;
+          const a = (avg - THRESH) * 1.6;
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y);
+          ctx.lineTo(n.x, n.y);
+          ctx.strokeStyle = `rgba(180,83,9,${Math.min(a, 0.52)})`;
+          ctx.stroke();
+        });
+      });
+
+      // Dots
+      dots.forEach(d => {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, DOT_R + d.op * 1.4, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(180,83,9,${d.op})`;
+        ctx.fill();
+      });
+
+      raf = requestAnimationFrame(frame);
+    }
+
+    window.addEventListener('mousemove', e => {
+      const r = section.getBoundingClientRect();
+      mouse.x = e.clientX - r.left;
+      mouse.y = e.clientY - r.top;
+    });
+    section.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
+    section.addEventListener('click', e => {
+      const r = section.getBoundingClientRect();
+      pulses.push({ x: e.clientX-r.left, y: e.clientY-r.top, age: 0 });
+    });
+    window.addEventListener('resize', () => { resize(); });
+
+    resize();
+    requestAnimationFrame(frame);
+  })();
 
   document.querySelectorAll('[data-img]').forEach(card => {
     const url = card.getAttribute('data-img');
